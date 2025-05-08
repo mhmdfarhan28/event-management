@@ -8,15 +8,26 @@ use App\Http\Traits\CanLoadRelationships;
 use App\Models\Attendee;
 use App\Models\Event;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Facades\Gate;
 
-class AttendeeController extends Controller
+class AttendeeController extends Controller implements HasMiddleware
 {
     use CanLoadRelationships;
 
     private array $relations = ['user'];
-    
+
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('auth:sanctum', except: ['index', 'show', 'update']),
+        ];
+    }
+
     public function index(Event $event)
     {
+        Gate::authorize('viewAny', $event);
         $attendees = $this->loadRelationships(
             $event->attendees()->latest()
         );
@@ -42,6 +53,7 @@ class AttendeeController extends Controller
      */
     public function show(Event $event, Attendee $attendee)
     {
+        Gate::authorize('view', $attendee);
         return new AttendeeResource(
             $this->loadRelationships($attendee)
         );
@@ -60,6 +72,8 @@ class AttendeeController extends Controller
      */
     public function destroy(Event $event, Attendee $attendee)
     {
+        // Gate::authorize('delete-attendee', [$event, $attendee]);
+        Gate::authorize('delete', [$event, $attendee]);
         $attendee->delete();
 
         return response(status: 204);
